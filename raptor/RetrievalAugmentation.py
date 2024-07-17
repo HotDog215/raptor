@@ -3,7 +3,7 @@ import pickle
 
 from .cluster_tree_builder import ClusterTreeBuilder, ClusterTreeConfig
 from .EmbeddingModels import BaseEmbeddingModel
-from .QAModels import BaseQAModel, GPT3TurboQAModel
+from .QAModels import BaseQAModel, EB4TurboQAModel
 from .SummarizationModels import BaseSummarizationModel
 from .tree_builder import TreeBuilder, TreeBuilderConfig
 from .tree_retriever import TreeRetriever, TreeRetrieverConfig
@@ -12,7 +12,10 @@ from .tree_structures import Node, Tree
 # Define a dictionary to map supported tree builders to their respective configs
 supported_tree_builders = {"cluster": (ClusterTreeBuilder, ClusterTreeConfig)}
 
-logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(pathname)s - %(message)s",
+    level=logging.INFO
+)
 
 
 class RetrievalAugmentationConfig:
@@ -30,7 +33,7 @@ class RetrievalAugmentationConfig:
         tr_threshold=0.5,
         tr_top_k=5,
         tr_selection_mode="top_k",
-        tr_context_embedding_model="OpenAI",
+        tr_context_embedding_model="Embedding-V1",
         tr_embedding_model=None,
         tr_num_layers=None,
         tr_start_layer=None,
@@ -41,10 +44,10 @@ class RetrievalAugmentationConfig:
         tb_threshold=0.5,
         tb_top_k=5,
         tb_selection_mode="top_k",
-        tb_summarization_length=100,
+        tb_summarization_length=99,
         tb_summarization_model=None,
         tb_embedding_models=None,
-        tb_cluster_embedding_model="OpenAI",
+        tb_cluster_embedding_model="Embedding-V1",
     ):
         # Validate tree_builder_type
         if tree_builder_type not in supported_tree_builders:
@@ -129,7 +132,7 @@ class RetrievalAugmentationConfig:
         # Assign the created configurations to the instance
         self.tree_builder_config = tree_builder_config
         self.tree_retriever_config = tree_retriever_config
-        self.qa_model = qa_model or GPT3TurboQAModel()
+        self.qa_model = qa_model or EB4TurboQAModel()
         self.tree_builder_type = tree_builder_type
 
     def log_config(self):

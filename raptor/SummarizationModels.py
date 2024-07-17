@@ -1,11 +1,13 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-
-from openai import OpenAI
+import qianfan
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(pathname)s - %(message)s",
+    level=logging.INFO
+)
 
 
 class BaseSummarizationModel(ABC):
@@ -14,8 +16,8 @@ class BaseSummarizationModel(ABC):
         pass
 
 
-class GPT3TurboSummarizationModel(BaseSummarizationModel):
-    def __init__(self, model="gpt-3.5-turbo"):
+class EB4TurboSummarizationModel(BaseSummarizationModel):
+    def __init__(self, model="ERNIE-4.0-Turbo-8K"):
 
         self.model = model
 
@@ -23,29 +25,25 @@ class GPT3TurboSummarizationModel(BaseSummarizationModel):
     def summarize(self, context, max_tokens=500, stop_sequence=None):
 
         try:
-            client = OpenAI()
-
-            response = client.chat.completions.create(
-                model=self.model,
+            client = qianfan.ChatCompletion()
+            response = client.do(
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
                     {
                         "role": "user",
-                        "content": f"Write a summary of the following, including as many key details as possible: {context}:",
-                    },
+                        "content": f"你是个乐于助人的助手。请输出以下内容的总结，总结不超过50个字，包括尽可能多的关键细节：{context}:",
+                    }
                 ],
-                max_tokens=max_tokens,
+                model=self.model,
             )
-
-            return response.choices[0].message.content
+            return response.body["result"]
 
         except Exception as e:
             print(e)
             return e
 
 
-class GPT3SummarizationModel(BaseSummarizationModel):
-    def __init__(self, model="text-davinci-003"):
+class EB4SummarizationModel(BaseSummarizationModel):
+    def __init__(self, model="ERNIE-4.0-8K"):
 
         self.model = model
 
@@ -53,21 +51,17 @@ class GPT3SummarizationModel(BaseSummarizationModel):
     def summarize(self, context, max_tokens=500, stop_sequence=None):
 
         try:
-            client = OpenAI()
-
-            response = client.chat.completions.create(
-                model=self.model,
+            client = qianfan.ChatCompletion()
+            response = client.do(
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
                     {
                         "role": "user",
-                        "content": f"Write a summary of the following, including as many key details as possible: {context}:",
-                    },
+                        "content": f"你是个乐于助人的助手。请输出以下内容的总结，总结不超过50个字，包括尽可能多的关键细节：{context}:",
+                    }
                 ],
-                max_tokens=max_tokens,
+                model=self.model,
             )
-
-            return response.choices[0].message.content
+            return response.body["result"]
 
         except Exception as e:
             print(e)

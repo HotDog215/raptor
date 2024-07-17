@@ -1,8 +1,7 @@
 import logging
 import os
 
-from openai import OpenAI
-
+import qianfan
 
 import getpass
 from abc import ABC, abstractmethod
@@ -18,16 +17,16 @@ class BaseQAModel(ABC):
         pass
 
 
-class GPT3QAModel(BaseQAModel):
-    def __init__(self, model="text-davinci-003"):
+class EB4QAModel(BaseQAModel):
+    def __init__(self, model="ERNIE-4.0-8K"):
         """
-        Initializes the GPT-3 model with the specified model version.
+        Initializes the EB-4 model with the specified model version.
 
         Args:
-            model (str, optional): The GPT-3 model version to use for generating summaries. Defaults to "text-davinci-003".
+            model (str, optional): The EB-4 model version to use for generating summaries. Defaults to "ERNIE-4.0-8K".
         """
         self.model = model
-        self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        self.client = qianfan.ChatCompletion()
 
     @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
     def answer_question(self, context, question, max_tokens=150, stop_sequence=None):
@@ -43,33 +42,30 @@ class GPT3QAModel(BaseQAModel):
             str: The generated summary.
         """
         try:
-            response = self.client.completions.create(
-                prompt=f"using the folloing information {context}. Answer the following question in less than 5-7 words, if possible: {question}",
-                temperature=0,
-                max_tokens=max_tokens,
-                top_p=1,
-                frequency_penalty=0,
-                presence_penalty=0,
-                stop=stop_sequence,
+            response = self.client.do(
+                messages=[{
+                    "role": "user",
+                    "content": f"using the folloing information {context}. Answer the following question in less than 5-7 words, if possible: {question}"
+                }],
                 model=self.model,
             )
-            return response.choices[0].text.strip()
+            return response.body["result"]
 
         except Exception as e:
             print(e)
             return ""
 
 
-class GPT3TurboQAModel(BaseQAModel):
-    def __init__(self, model="gpt-3.5-turbo"):
+class EB3QAModel(BaseQAModel):
+    def __init__(self, model="ERNIE-3.5-8K"):
         """
-        Initializes the GPT-3 model with the specified model version.
+        Initializes the ERNIE-3.5-8K model with the specified model version.
 
         Args:
-            model (str, optional): The GPT-3 model version to use for generating summaries. Defaults to "text-davinci-003".
+            model (str, optional): The EB-3.5 model version to use for generating summaries. Defaults to "ERNIE-3.5-8K".
         """
         self.model = model
-        self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        self.client = qianfan.ChatCompletion()
 
     @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
     def _attempt_answer_question(
@@ -86,19 +82,23 @@ class GPT3TurboQAModel(BaseQAModel):
         Returns:
             str: The generated summary.
         """
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": "You are Question Answering Portal"},
-                {
-                    "role": "user",
-                    "content": f"Given Context: {context} Give the best full answer amongst the option to question {question}",
-                },
-            ],
-            temperature=0,
-        )
+        try:
+            response = self.client.do(
+                messages=[
+                    # {"role": "system", "content": "You are Question Answering Portal"},
+                    {
+                        "role": "user",
+                        "content": f"您是解决问题的专家，使用以下的参考信息{context}，回答用户的问题{question}"
+                        # "content": f"using the folloing information {context}. Answer the following question in less than 5-7 words, if possible: {question}"
+                    }
+                ],
+                model=self.model,
+            )
+            return response.body["result"]
 
-        return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(e)
+            return ""
 
     @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
     def answer_question(self, context, question, max_tokens=150, stop_sequence=None):
@@ -112,16 +112,16 @@ class GPT3TurboQAModel(BaseQAModel):
             return e
 
 
-class GPT4QAModel(BaseQAModel):
-    def __init__(self, model="gpt-4"):
+class EB4TurboQAModel(BaseQAModel):
+    def __init__(self, model="ERNIE-4.0-Turbo-8K"):
         """
-        Initializes the GPT-3 model with the specified model version.
+        Initializes the EB-4 Turbo model with the specified model version.
 
         Args:
-            model (str, optional): The GPT-3 model version to use for generating summaries. Defaults to "text-davinci-003".
+            model (str, optional): The EB-4 Turbo model version to use for generating summaries. Defaults to "ERNIE-4.0-Turbo-8K".
         """
         self.model = model
-        self.client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+        self.client = qianfan.ChatCompletion()
 
     @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
     def _attempt_answer_question(
@@ -138,19 +138,23 @@ class GPT4QAModel(BaseQAModel):
         Returns:
             str: The generated summary.
         """
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
-                {"role": "system", "content": "You are Question Answering Portal"},
-                {
-                    "role": "user",
-                    "content": f"Given Context: {context} Give the best full answer amongst the option to question {question}",
-                },
-            ],
-            temperature=0,
-        )
+        try:
+            response = self.client.do(
+                messages=[
+                    # {"role": "system", "content": "You are Question Answering Portal"},
+                    {
+                        "role": "user",
+                        "content": f"您是解决问题的专家，使用以下的参考信息{context}，回答用户的问题{question}"
+                        # "content": f"using the folloing information {context}. Answer the following question in less than 5-7 words, if possible: {question}"
+                    }
+                ],
+                model=self.model,
+            )
+            return response.body["result"]
 
-        return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(e)
+            return ""
 
     @retry(wait=wait_random_exponential(min=1, max=20), stop=stop_after_attempt(6))
     def answer_question(self, context, question, max_tokens=150, stop_sequence=None):

@@ -11,8 +11,10 @@ from .utils import (distances_from_embeddings, get_children, get_embeddings,
                     get_node_list, get_text,
                     indices_of_nearest_neighbors_from_distances, split_text)
 
-logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
-
+logging.basicConfig(
+    format="%(asctime)s - %(pathname)s - %(message)s",
+    level=logging.INFO
+)
 
 class ClusterTreeConfig(TreeBuilderConfig):
     def __init__(
@@ -66,12 +68,18 @@ class ClusterTreeBuilder(TreeBuilder):
         def process_cluster(
             cluster, new_level_nodes, next_node_index, summarization_length, lock
         ):
+            logging.info(f"cluster length: {len(cluster)}, new_node_index: {next_node_index}, "
+                         f"next_node_index: {next_node_index}, summarization_length: {summarization_length}")
+            logging.info(f"cluster: {cluster}")
+            logging.info(f"new_level_nodes: {new_level_nodes}")
             node_texts = get_text(cluster)
+            logging.info(f"node_texts: {node_texts}")
 
             summarized_text = self.summarize(
                 context=node_texts,
                 max_tokens=summarization_length,
             )
+            logging.info(f"summarized_text: {summarized_text}")
 
             logging.info(
                 f"Node Texts Length: {len(self.tokenizer.encode(node_texts))}, Summarized Text Length: {len(self.tokenizer.encode(summarized_text))}"
@@ -110,6 +118,7 @@ class ClusterTreeBuilder(TreeBuilder):
 
             summarization_length = self.summarization_length
             logging.info(f"Summarization Length: {summarization_length}")
+            logging.info(f"use_multithreading: {use_multithreading}")
 
             if use_multithreading:
                 with ThreadPoolExecutor() as executor:
@@ -126,6 +135,8 @@ class ClusterTreeBuilder(TreeBuilder):
                     executor.shutdown(wait=True)
 
             else:
+                logging.info("Using Sequential Processing")
+                logging.info(f"Number of Clusters: {len(clusters)}")
                 for cluster in clusters:
                     process_cluster(
                         cluster,
@@ -135,6 +146,7 @@ class ClusterTreeBuilder(TreeBuilder):
                         lock,
                     )
                     next_node_index += 1
+            logging.info(f"Number of Nodes in New Level: {len(new_level_nodes)}")
 
             layer_to_nodes[layer + 1] = list(new_level_nodes.values())
             current_level_nodes = new_level_nodes

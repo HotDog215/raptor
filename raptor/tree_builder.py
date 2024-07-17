@@ -6,19 +6,21 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from threading import Lock
 from typing import Dict, List, Optional, Set, Tuple
 
-import openai
 import tiktoken
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 
-from .EmbeddingModels import BaseEmbeddingModel, OpenAIEmbeddingModel
+from .EmbeddingModels import BaseEmbeddingModel, EBEmbeddingModel
 from .SummarizationModels import (BaseSummarizationModel,
-                                  GPT3TurboSummarizationModel)
+                                  EB4TurboSummarizationModel)
 from .tree_structures import Node, Tree
 from .utils import (distances_from_embeddings, get_children, get_embeddings,
                     get_node_list, get_text,
                     indices_of_nearest_neighbors_from_distances, split_text)
 
-logging.basicConfig(format="%(asctime)s - %(message)s", level=logging.INFO)
+logging.basicConfig(
+    format="%(asctime)s - %(pathname)s - %(message)s",
+    level=logging.INFO
+)
 
 
 class TreeBuilderConfig:
@@ -70,11 +72,11 @@ class TreeBuilderConfig:
         self.selection_mode = selection_mode
 
         if summarization_length is None:
-            summarization_length = 100
+            summarization_length = 5
         self.summarization_length = summarization_length
 
         if summarization_model is None:
-            summarization_model = GPT3TurboSummarizationModel()
+            summarization_model = EB4TurboSummarizationModel()
         if not isinstance(summarization_model, BaseSummarizationModel):
             raise ValueError(
                 "summarization_model must be an instance of BaseSummarizationModel"
@@ -82,7 +84,7 @@ class TreeBuilderConfig:
         self.summarization_model = summarization_model
 
         if embedding_models is None:
-            embedding_models = {"OpenAI": OpenAIEmbeddingModel()}
+            embedding_models = {"Embedding-V1": EBEmbeddingModel()}
         if not isinstance(embedding_models, dict):
             raise ValueError(
                 "embedding_models must be a dictionary of model_name: instance pairs"
@@ -95,7 +97,7 @@ class TreeBuilderConfig:
         self.embedding_models = embedding_models
 
         if cluster_embedding_model is None:
-            cluster_embedding_model = "OpenAI"
+            cluster_embedding_model = "Embedding-V1"
         if cluster_embedding_model not in self.embedding_models:
             raise ValueError(
                 "cluster_embedding_model must be a key in the embedding_models dictionary"
@@ -169,14 +171,21 @@ class TreeBuilder:
         Returns:
             Tuple[int, Node]: A tuple containing the index and the newly created node.
         """
+        logging.info(f"creating node with index {index}")
         if children_indices is None:
             children_indices = set()
 
-        embeddings = {
-            model_name: model.create_embedding(text)
-            for model_name, model in self.embedding_models.items()
-        }
-        return (index, Node(text, index, children_indices, embeddings))
+        logging.info(f"children_indices are being created, {children_indices}")
+        logging.info(f"embedding_models: {self.embedding_models.keys()}")
+        if text is None or len(text) == 0:
+            logging.info(f"text is empty, skipping")
+        else:
+            logging.info(f"text : {text}")
+            embeddings = {
+                model_name: model.create_embedding(text)
+                for model_name, model in self.embedding_models.items()
+            }
+            return (index, Node(text, index, children_indices, embeddings))
 
     def create_embedding(self, text) -> List[float]:
         """
@@ -257,7 +266,7 @@ class TreeBuilder:
 
         return leaf_nodes
 
-    def build_from_text(self, text: str, use_multithreading: bool = True) -> Tree:
+    def build_from_text(self, text: str, use_multithreading: bool = False) -> Tree:
         """Builds a golden tree from the input text, optionally using multithreading.
 
         Args:
@@ -269,6 +278,8 @@ class TreeBuilder:
             Tree: The golden tree structure.
         """
         chunks = split_text(text, self.tokenizer, self.max_tokens)
+        logging.info(f"Split Text into {len(chunks)} Chunks")
+        logging.info(f"chunks is: {chunks}")
 
         logging.info("Creating Leaf Nodes")
 
@@ -277,6 +288,9 @@ class TreeBuilder:
         else:
             leaf_nodes = {}
             for index, text in enumerate(chunks):
+                if text == "":
+                    continue
+                logging.info(f"Creating Leaf Node {index}")
                 __, node = self.create_node(index, text)
                 leaf_nodes[index] = node
 
@@ -300,7 +314,7 @@ class TreeBuilder:
         current_level_nodes: Dict[int, Node],
         all_tree_nodes: Dict[int, Node],
         layer_to_nodes: Dict[int, List[Node]],
-        use_multithreading: bool = True,
+        use_multithreading: bool = False,
     ) -> Dict[int, Node]:
         """
         Constructs the hierarchical tree structure layer by layer by iteratively summarizing groups
